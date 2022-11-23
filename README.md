@@ -57,6 +57,7 @@ main();
 ## Install
 
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/psysecgroup/threaded-sqlite-write)
+
 (Bindings for `sqlite3` do not exist for StackBlitz's POSIX shell 😥)
 
 First, install `sqlite3`:
