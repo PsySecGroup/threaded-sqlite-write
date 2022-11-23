@@ -1,0 +1,51 @@
+lib-cov
+*.seed
+*.log
+*.csv
+*.dat
+*.out
+*.pid
+*.gz
+*.swp
+
+pids
+logs
+results
+tmp
+
+# Coverage reports
+coverage
+
+# API keys and secrets
+.env
+
+# Dependency directory
+node_modules
+bower_components
+
+# Editors
+.idea
+*.iml
+.vscode*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Ignore built ts files
+dist/**/*
+build/
+tsconfig.tsbuildinfo
+
+# ignore yarn.lock
+
+# Ignore Prisma
+prisma/runtime
+prisma/*.db
+prisma/*.db-journal
+prisma/index.*
+prisma/index-browser.*
+prisma/query-engine-*
+
+data
+dist

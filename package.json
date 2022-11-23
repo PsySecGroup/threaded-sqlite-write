@@ -1,0 +1,52 @@
+{
+  "name": "@psysecgroup/threaded-sqlite-write",
+  "description": "Extreme speed SQLite bulk insertions spread across multiple threads then compiled into a single SQLite file.",
+  "version": "1.0.0",
+  "author": "The PsySec Group",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/PsySecGroup/threaded-sqlite-write/issues"
+  },
+  "homepage": "https://github.com/PsySecGroup/threaded-sqlite-write#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PsySecGroup/threaded-sqlite-write.git"
+  },
+  "scripts": {
+    "start": "node -r source-map-support/register dist/index.js",
+    "dev": "echo 'Type \"npm run sb-watch\" to get started'",
+    "build": "tsup-node --legacy-output --dts --minify --format esm,cjs,iife src/index.ts && tsup-node --legacy-output --minify --format esm,cjs,iife src/insert.ts",
+    "sb-watch": "nodemon --watch src/ -e ts,tsx,js --exec \"tsup-node src/insert.ts & tsup-node --dts --onSuccess 'node -r source-map-support/register dist/index.js' src/index.ts & wait\"",
+    "watch": "tsup-node --watch src/insert.ts & tsup-node --watch --dts --onSuccess 'node -r source-map-support/register dist/index.js' src/index.ts & wait",
+    "test": "nodemon --watch tests/ --watch src/ -e ts,tsx,js --exec \"tsup-node src/insert.ts & tsup-node --entry.tests=tests/index.ts --onSuccess 'uvu -r source-map-support/register dist ^tests.js$' src/index.ts & wait\""
+  },
+  "tsup": {
+    "entry": [
+      "src/index.ts"
+    ],
+    "splitting": false,
+    "sourcemap": true,
+    "clean": false,
+    "dts": false
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "devDependencies": {
+    "@types/node": "^17.0.41",
+    "nodemon": "^2.0.16",
+    "source-map-support": "^0.5.21",
+    "tsup": "^6.1.0",
+    "typescript": "^4.7.3",
+    "uvu": "^0.5.6"
+  },
+  "dependencies": {
+    "better-sqlite3": "^8.0.0",
+    "fs-extra": "^10.1.0",
+    "shelljs": "^0.8.5",
+    "ts-node": "^10.8.1"
+  }
+}
