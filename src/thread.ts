@@ -6,7 +6,7 @@ import { exec } from 'shelljs'
 
 const queue: Job[] = []
 const cpus = os.cpus()
-const workerCount = cpus.length
+export const workerCount = cpus.length
 const createTableRegex = /CREATE TABLE IF NOT EXISTS ([^\s]+) \(/
 
 let workers: iWorker[] = []
