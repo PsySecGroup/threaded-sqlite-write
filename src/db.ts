@@ -15,7 +15,7 @@ const cache: {
 export const getDb = (path: string) => {
   if (cache[path] === undefined) {
     ensureFileSync(path)
-    cache[path] = new SqliteDatabaseConnection(path, { verbose: console.log })
+    cache[path] = new SqliteDatabaseConnection(path)
   }
 
   return cache[path]
