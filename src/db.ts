@@ -16,6 +16,10 @@ export const getDb = (path: string) => {
   if (cache[path] === undefined) {
     ensureFileSync(path)
     cache[path] = new SqliteDatabaseConnection(path)
+    process.on('exit', () => cache[path].close());
+    process.on('SIGHUP', () => process.exit(128 + 1));
+    process.on('SIGINT', () => process.exit(128 + 2));
+    process.on('SIGTERM', () => process.exit(128 + 15));
   }
 
   return cache[path]

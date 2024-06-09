@@ -177,7 +177,8 @@ export const startWriters = async (dbPath: string, fileName: string, createTable
         commands.push(`(rm -f "${filePath}" && rm -f "${filePath}-journal")`)
       }
 
-      exec(`((${commands.join(' && ')}) & wait)`)
+      // exec(`((${commands.join(' && ')}) & wait)`)
+      exec(`(${commands.join(' && ')})`)
 
       return true
     }

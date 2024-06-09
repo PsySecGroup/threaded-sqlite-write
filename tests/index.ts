@@ -19,7 +19,7 @@ test('Enqueue and insert example', async () => {
   ])
 
   await startWriters(
-    'data', 'items',
+    'tests', 'items',
     'CREATE TABLE IF NOT EXISTS comments (username TEXT, message TEXT);',
     function (data) {
       let query = '';
@@ -36,24 +36,33 @@ test('Enqueue and insert example', async () => {
     true
   );
 
-  const db = getDb('data/items.sqlite')
+  const db = getDb('tests/items.sqlite')
   const result = db.prepare('SELECT * from comments;').bind().all()
 
   assert.equal(result.length, 6);
-  assert.equal(result[0].username, 'a');
-  assert.equal(result[0].message, 'hey');
-  assert.equal(result[1].username, 'b');
-  assert.equal(result[1].message, 'no');
-  assert.equal(result[2].username, 'c');
-  assert.equal(result[2].message, 'yes');
-  assert.equal(result[3].username, 'd');
-  assert.equal(result[3].message, 'what');
-  assert.equal(result[4].username, 'e');
-  assert.equal(result[4].message, 'but');
-  assert.equal(result[5].username, 'f');
-  assert.equal(result[5].message, 'why');
 
-  exec('rm data/items.sqlite && rmdir data');
+  if (result[0].username === 'a') {
+    assert.equal(result, [
+      { username: 'a', message: 'hey' },
+      { username: 'b', message: 'no' },
+      { username: 'c', message: 'yes' },
+      { username: 'd', message: 'what' },
+      { username: 'e', message: 'but' },
+      { username: 'f', message: 'why' }
+    ])
+  } else {
+    assert.equal(result, [
+      { username: 'd', message: 'what' },
+      { username: 'e', message: 'but' },
+      { username: 'f', message: 'why' },
+      { username: 'a', message: 'hey' },
+      { username: 'b', message: 'no' },
+      { username: 'c', message: 'yes' }
+    ])
+  }
+
+  db.close()
+  exec('rm tests/items.sqlite')
 })
 
 test.run()

@@ -2,10 +2,10 @@ module.exports = {
   "parser": "@typescript-eslint/parser",
   "ignorePatterns": [
     "node_modules",
-    "build/**",
-    "src/dev-index.js",
     ".eslintrc.js",
-    ".git/**"
+    ".git/**",
+    "dist",
+    "data"
   ],
   "parserOptions": {
     "tsconfigRootDir": __dirname,
