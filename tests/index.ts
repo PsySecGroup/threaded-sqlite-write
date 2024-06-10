@@ -1,7 +1,7 @@
 import { test } from 'uvu'
 import * as assert from 'uvu/assert'
 import { startWriters, enqueue, getDb } from '../src/index'
-import { exec } from 'shelljs'
+import { exec } from '../src/shell'
 
 test('Enqueue and insert example', async () => {
 
@@ -34,7 +34,7 @@ test('Enqueue and insert example', async () => {
       return query
     },
     true
-  );
+  )
 
   const db = getDb('tests/items.sqlite')
   const result = db.prepare('SELECT * from comments;').bind().all()
@@ -61,8 +61,9 @@ test('Enqueue and insert example', async () => {
     ])
   }
 
+
   db.close()
-  exec('rm tests/items.sqlite')
+  await exec('rm tests/items.sqlite')
 })
 
 test.run()

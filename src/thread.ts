@@ -2,7 +2,7 @@ import type { Message, Job, iWorker, Db } from './index.d'
 import * as os from 'os'
 import { Worker } from 'worker_threads'
 import { ensureDirSync } from 'fs-extra'
-import { exec } from 'shelljs'
+import { exec } from './shell'
 
 const queue: Job[] = []
 const cpus = os.cpus()
@@ -65,7 +65,7 @@ let processing = 0
 
             if (queue.length === 0 && processing === 0) {
               // All processing is complete
-              if (cleanup() === true) {
+              if (await cleanup() === true) {
                 return resolve(true)
               }
             }
@@ -153,7 +153,7 @@ export const startWriters = async (dbPath: string, fileName: string, createTable
     },
 
     // Cleanup after all workers are finished
-    () => {
+    async () => {
       if (queue.length > 0 || consolidate === false || cleaningUp) {
         // No clean up coming on
         return false
@@ -177,8 +177,8 @@ export const startWriters = async (dbPath: string, fileName: string, createTable
         commands.push(`(rm -f "${filePath}" && rm -f "${filePath}-journal")`)
       }
 
-      // exec(`((${commands.join(' && ')}) & wait)`)
-      exec(`(${commands.join(' && ')})`)
+      // await exec(`((${commands.join(' && ')}) & wait)`)
+      await exec(`(${commands.join(' && ')})`)
 
       return true
     }
