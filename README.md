@@ -2,7 +2,44 @@
 
 Extreme speed SQLite bulk insertions spread across multiple threads then compiled into a single SQLite file.
 
-## Example
+## Examples
+
+For a simple case:
+
+```ts
+const { startWriters, enqueue } = require('@psysecgroup/threaded-sqlite-write')
+
+async function main () {
+  // Enqueue schedules a single thread to handle the insertion of an array
+  enqueue([
+    { username: 'a', message: 'hey' },
+    { username: 'b', message: 'no' },
+    { username: 'c', message: 'yes' }
+  ])
+
+  // This will schedule another thread
+  enqueue([
+    { username: 'd', message: 'what' },
+    { username: 'e', message: 'but' },
+    { username: 'f', message: 'why' }
+  ])
+
+  await startWriters(
+    // Directory to save the sqlite database
+    'data',
+
+    // The prefix of the sqlite database
+    'items',
+
+    // The part of a sqlite CREATE TABLE command that only has the table and the fields
+    'comments (username TEXT, message TEXT)'
+  )
+}
+
+main()
+```
+
+For a more elaborate use case where you have to control each row before they are inserted:
 
 ```ts
 const { startWriters, enqueue } = require('@psysecgroup/threaded-sqlite-write');
@@ -12,13 +49,13 @@ async function main () {
   enqueue([
     { username: 'a', message: 'hey' },
     { username: 'b', message: 'no' },
-    { username: 'c', message: 'yes' },
+    { username: 'c', message: 'yes' }
   ])
 
   enqueue([
     { username: 'd', message: 'what' },
     { username: 'e', message: 'but' },
-    { username: 'f', message: 'why' },
+    { username: 'f', message: 'why' }
   ])
 
   await startWriters(
@@ -48,10 +85,10 @@ async function main () {
     // If set to true, all created databases will be merged into one single database with every record (default)
     // If set to false, a SQLite file will exist for each core your CPU has
     true
-  );
+  )
 }
 
-main();
+main()
 ```
 
 ## Install
