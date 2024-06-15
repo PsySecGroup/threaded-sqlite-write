@@ -30,13 +30,8 @@ function defaultRowParser (data) {
         case 'NVARCHAR':
           query += "'" + item[key].replace(escapeRegex, "''") + "'"
           break
-        case 'REAL':
-        case 'NUMERIC':
-          query += parseFloat(item[key])
-          break
         default:
-          query += parseInt(item[key])
-          break
+          query += item[key]
       }
 
       if (index < typeCacheKeys.length - 1) {
