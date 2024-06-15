@@ -55,6 +55,7 @@ function defaultRowParser (data) {
 }
 
 parentPort.on('message', (command) => {
+  try{
   const { type } = command
 
   if (type === 'connect') {
@@ -87,6 +88,9 @@ parentPort.on('message', (command) => {
     const { sql } = command
     parentPort.postMessage(db.exec(sql))
   }
+}catch(e){
+  console.error(e)
+}
 })`
 
 let workers: iWorker[] = []
