@@ -149,4 +149,4 @@ Add your tests to the [`tests`](tests) folder, then import them in the [`tests/i
 ## Research
 
 * Order of records is not guuarenteed.  It is important to have an accurate createdAt timestamp for your records for meaningful useful sorting.
-* Find a way to convert JSON to insert statements quickly.
+* Find a way to handle error messaging better than try/catch blocks
