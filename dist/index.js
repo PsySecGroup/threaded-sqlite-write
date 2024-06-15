@@ -48,7 +48,6 @@ function defaultRowParser (data) {
 }
 
 parentPort.on('message', (command) => {
-  try{
   const { type } = command
 
   if (type === 'connect') {
@@ -81,7 +80,4 @@ parentPort.on('message', (command) => {
     const { sql } = command
     parentPort.postMessage(db.exec(sql))
   }
-}catch(e){
-  console.error(e)
-}
 })`,Ne=[],ze=0,Ze=!1,et=0;async function Xo(e,t){let r=[];return new Promise(n=>{function i(o,u){let c=new pn.Worker(Vo,{eval:!0});r.push(c);let a=null;function h(){return!a&&de.length?(et+=1,a=de.shift(),c.postMessage(a.message),!0):!1}c.on("online",()=>{Ne.push({takeWork:h,shutdown:()=>c.terminate()}),h()}).on("message",async s=>{if(s===!0){if(et-=1,de.length===0&&et===0&&await t(r)===!0)return n(!0)}else{if(a===null)return;a.resolve(s),a=null,h()}}).on("error",s=>{console.error(s)}),e(c,u)}En.forEach(i)})}var vn=async e=>new Promise((t,r)=>{de.push({resolve:t,reject:r,message:e});let n=0;for(let i of Ne){if(n===ze){i.takeWork(),ze=(ze+1)%Ie;break}n+=1}});function Ho(e){let t=Yo.exec(e);if(!t)throw new Error("Invalid CREATE TABLE statement");let r=t[1],n=t[2].trim(),i={},o;for(;(o=Ko.exec(n))!==null;){let u=o[1],c=o[2].toUpperCase();i[u]=c}return{tableName:r,fields:i}}var kn=async(e,t,r,n=void 0,i=!0)=>{(0,wn.ensureDirSync)(e);let o="CREATE TABLE IF NOT EXISTS "+r+";",u=Ho(o);return Xo((c,a)=>{c.postMessage({typeCache:u,type:"connect",path:e+"/"+t+"."+a+".sqlite",transactions:n?.toString()}),c.postMessage({sql:o})},async c=>{if(de.length>0||i===!1||Ze)return!1;Ze=!0,await Promise.all(Ne.map((s,f)=>new Promise(y=>{c[f].on("exit",y),s.shutdown()}))),Ne=[];let a=e+"/"+t+".sqlite",h=[`(rm -f "${a}" && touch "${a}")`];for(let s=0;s<Ie;s++){let f=e+"/"+t+"."+s+".sqlite",y=o.match(Go)[1];h.push(`(sqlite3 "${f}" ".dump ${y}" | sed -e 's/CREATE TABLE ${y} /CREATE TABLE IF NOT EXISTS ${y} /' | sqlite3 "${a}")`),h.push(`(rm -f "${f}" && rm -f "${f}-journal")`)}return await hn(`(${h.join(" && ")})`),Ze=!1,!0})};var qn=ie(require("better-sqlite3"));var gn=ie(Qe()),Re={},xn=e=>(Re[e]===void 0&&((0,gn.ensureFileSync)(e),Re[e]=new qn.default(e),process.on("exit",()=>Re[e].close()),process.on("SIGHUP",()=>process.exit(129)),process.on("SIGINT",()=>process.exit(130)),process.on("SIGTERM",()=>process.exit(143))),Re[e]),Fn=async e=>vn({type:"collection",data:e});var Qo=kn,zo=Fn,Zo=xn,eu=Ie;0&&(module.exports={enqueue,getDb,startWriters,workerCount});
