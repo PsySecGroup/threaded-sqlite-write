@@ -8,6 +8,91 @@ const queue: Job[] = []
 const cpus = os.cpus()
 export const workerCount = cpus.length
 const createTableRegex = /CREATE TABLE IF NOT EXISTS ([^\s]+) \(/
+const createTableCacheRegex = /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s*(\w+)\s*\(([\s\S]*?)\)/i
+const fieldRegex = /(\w+)\s+(\w+)/ig
+
+const workerFunction = `const { parentPort } = require('worker_threads')
+const { getDb } = require('.')
+
+let db
+let transactionFactory
+let typeCache
+let typeCacheKeys
+let typeCacheInsert
+const escapeRegex = /'/g
+
+function defaultRowParser (data) {
+  let result = ''
+
+  for (const item of data) {
+    let query = 'INSERT INTO ' + typeCache.tableName + ' (' + typeCacheInsert + ') VALUES ('
+    let index = 0
+
+    for(const key of typeCacheKeys) {
+      switch (typeCache.fields[key]) {
+        case 'TEXT':
+        case 'VARCHAR':
+        case 'CHAR':
+        case 'NCHAR':
+        case 'NVARCHAR':
+          query += "'" + item[key].replace(escapeRegex, "''") + "'"
+          break
+        case 'REAL':
+        case 'NUMERIC':
+          query += parseFloat(item[key])
+          break
+        default:
+          query += parseInt(item[key])
+          break
+      }
+
+      if (index < typeCacheKeys.length - 1) {
+        query += ','
+      }
+
+      index += 1
+    }
+
+    result += query + ');'
+  }
+
+  return result
+}
+
+parentPort.on('message', (command) => {
+  const { type } = command
+
+  if (type === 'connect') {
+    // Initial connection
+    const { transactions, path } = command
+    typeCache = command.typeCache
+    typeCacheKeys = Object.keys(command.typeCache.fields)
+    typeCacheInsert = typeCacheKeys.join(', ')
+
+    db = getDb(path)
+    db.exec('PRAGMA journal_mode = OFF;')
+    db.exec('PRAGMA synchronous = 0;')
+    db.exec('PRAGMA cache_size = 1000000;')
+    db.exec('PRAGMA locking_mode = EXCLUSIVE')
+    db.exec('PRAGMA temp_store = MEMORY;')
+
+    transactionFactory = transactions === undefined
+      ? defaultRowParser
+      : new Function('return ' + transactions)()
+
+  } else if (type === 'collection') {
+    // Dealing with transactions
+    const { data } = command
+
+    db.exec('BEGIN TRANSACTION;' + transactionFactory(data) + 'COMMIT;')
+    parentPort.postMessage(true)
+
+  } else {
+    // Arbitrary sql
+    const { sql } = command
+    parentPort.postMessage(db.exec(sql))
+  }
+})`
 
 let workers: iWorker[] = []
 let nextId = 0
@@ -17,86 +102,96 @@ let processing = 0
 /**
  * Start workers
  */
- async function start (workerPath: string, startup: (worker: Worker, index: number) => void, cleanup: () => boolean) {
+ async function start (startup: (worker: Worker, index: number) => void, cleanup: () => boolean) {
+    const workerInstances = []
     return new Promise(resolve => {
-    /**
-     * Spawns a worker
-     */
-    function spawn(cpuInfo: os.CpuInfo, index: number) {
-      const worker = new Worker(workerPath)
-
-      // Current item from the queue
-      let job: Job = null 
-
       /**
-       * If work exists, dequeue it and send it to the worker 
+       * Spawns a worker
        */
-      function takeWork() {
-        if (!job && queue.length) {
-          // If there's a job in the queue, send it to the worker
-          processing += 1
-          job = queue.shift()
+      function spawn(cpuInfo: os.CpuInfo, index: number) {
+        const worker = new Worker(workerFunction, {
+          eval: true
+        })
 
-          worker.postMessage(job.message)
-        }
-      }
+        workerInstances.push(worker)
 
-      worker
+        // Current item from the queue
+        let job: Job = null 
+
         /**
-         * Worker is online, register its ability to take work from the master queue
+         * If work exists, dequeue it and send it to the worker 
          */
-        .on('online', () => {
-          workers.push({
-            takeWork,
-            shutdown: () => worker.terminate()
+        function takeWork() {
+          if (!job && queue.length) {
+            // If there's a job in the queue, send it to the worker
+            processing += 1
+            job = queue.shift()
+
+            worker.postMessage(job.message)
+            return true
+          }
+          return false
+        }
+
+        worker
+          /**
+           * Worker is online, register its ability to take work from the master queue
+           */
+          .on('online', () => {
+            workers.push({
+              takeWork,
+              shutdown: () => worker.terminate()
+            })
+
+            // Start taking work
+            takeWork()
           })
 
-          // Start taking work
-          takeWork()
-        })
+          /**
+           * Worker has received a message, process it
+           */
+          .on('message', async (result: Db | true) => {
+            if (result === true) {
+              // Processing is complete
+              processing -= 1
 
-        /**
-         * Worker has received a message, process it
-         */
-        .on('message', async (result: Db | true) => {
-          if (result === true) {
-            // Processing is complete
-            processing -= 1
+              if (queue.length === 0 && processing === 0) {
+                // All processing is complete
+                const cleanedUp = await cleanup(workerInstances)
 
-            if (queue.length === 0 && processing === 0) {
-              // All processing is complete
-              if (await cleanup() === true) {
-                return resolve(true)
+                if (cleanedUp === true) {
+                  return resolve(true)
+                }
               }
-            }
-          } else {
-            // New request
-            if (job === null) {
-              // No job exists, leave
-              return 
-            }
-    
-            job.resolve(result as Db)          
-            job = null
-    
-            takeWork()
-          }
-        })
-
-        /**
-         * Worker has received an error
-         */
-        .on('error', (err) => {
-          console.error(err)
-        })
+            } else {
+              // New request
+              if (job === null) {
+                // No job exists, leave
+                return 
+              }
       
-      // Startup this thread with the worker and its index
-      startup(worker, index)
-    }
+              job.resolve(result as Db)          
+              job = null
+      
+              takeWork()
+            }
+          })
 
-    // Spawn each worker
-    cpus.forEach(spawn)
-  })
+          /**
+           * Worker has received an error
+           */
+          .on('error', (err) => {
+            console.error(err)
+          })
+        
+        // Startup this thread with the worker and its index
+        startup(worker, index)
+      }
+
+      // Spawn each worker
+      cpus.forEach(spawn)
+    }
+  )
 }
 
 /**
@@ -129,31 +224,57 @@ export const doWork = async (message: Message): Promise<Db> => {
 }
 
 /**
+ *
+ */
+function buildTypeCache(sql) {
+  const match = createTableCacheRegex.exec(sql)
+  if (!match) {
+    throw new Error('Invalid CREATE TABLE statement')
+  }
+  
+  const tableName = match[1];
+  const fieldsString = match[2].trim()
+  
+  const fields = {}
+  let fieldMatch
+  
+  while ((fieldMatch = fieldRegex.exec(fieldsString)) !== null) {
+    const fieldName = fieldMatch[1]
+    const fieldType = fieldMatch[2].toUpperCase() // Convert type to uppercase
+    
+    fields[fieldName] = fieldType
+  }
+  
+  return { tableName, fields }
+}
+
+/**
  * Start SQLite Batch Writes
  */
-export const startWriters = async (dbPath: string, fileName: string, createTableSql: string, transactionsFactory: (data: any[]) => string, consolidate: boolean = false) => {
+export const startWriters = async (dbPath: string, fileName: string, createTableSql: string, transactionsFactory: (data: any[]) => string = undefined, consolidate: boolean = true) => {
   ensureDirSync(dbPath)
+  const createTableStatement = 'CREATE TABLE IF NOT EXISTS ' + createTableSql + ';'
+  const typeCache = buildTypeCache(createTableStatement)
 
   return start(
-    __dirname + '/../dist/insert.js',
-
     // Startup
     (worker, index) => {
       // Create the SQLite database per worker
       worker.postMessage({
+        typeCache,
         type: 'connect',
         path: dbPath + '/' + fileName + '.' + index + '.sqlite',
-        transactions: transactionsFactory.toString() || 'function (sql) { return sql }'
+        transactions: transactionsFactory?.toString()
       })
 
       // Register the database to insert into
       worker.postMessage({
-        sql: createTableSql
+        sql: createTableStatement
       })
     },
 
     // Cleanup after all workers are finished
-    async () => {
+    async (workerInstances) => {
       if (queue.length > 0 || consolidate === false || cleaningUp) {
         // No clean up coming on
         return false
@@ -161,7 +282,14 @@ export const startWriters = async (dbPath: string, fileName: string, createTable
 
       cleaningUp = true
 
-      workers.forEach(w => w.shutdown())
+      // Terminate all workers
+      await Promise.all(workers.map((w, i) => new Promise<void>(resolve => {
+        workerInstances[i].on('exit', resolve)
+        w.shutdown()
+      })))
+
+      // Reset the workers array
+      workers = []
 
       const consolidatedFilePath = dbPath + '/' + fileName + '.sqlite'
 
@@ -171,7 +299,7 @@ export const startWriters = async (dbPath: string, fileName: string, createTable
 
       for (let i = 0; i  < workerCount; i++) {
         const filePath = dbPath + '/' + fileName + '.' + i + '.sqlite'
-        const tableName = createTableSql.match(createTableRegex)[1]
+        const tableName = createTableStatement.match(createTableRegex)[1]
 
         commands.push(`(sqlite3 "${filePath}" ".dump ${tableName}" | sed -e 's/CREATE TABLE ${tableName} /CREATE TABLE IF NOT EXISTS ${tableName} /' | sqlite3 "${consolidatedFilePath}")`)
         commands.push(`(rm -f "${filePath}" && rm -f "${filePath}-journal")`)
@@ -180,6 +308,7 @@ export const startWriters = async (dbPath: string, fileName: string, createTable
       // await exec(`((${commands.join(' && ')}) & wait)`)
       await exec(`(${commands.join(' && ')})`)
 
+      cleaningUp = false
       return true
     }
   )

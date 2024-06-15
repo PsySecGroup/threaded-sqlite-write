@@ -29,7 +29,7 @@ async function main () {
     'items',
 
     // The CREATE TABLE sql for the table to populate (Must be CREATE TABLE IF NOT EXISTS)
-    'CREATE TABLE IF NOT EXISTS comments (username TEXT, message TEXT);',
+    'comments (username TEXT, message TEXT)',
 
     // The function that converts enqueue() arrays of data into a semicolon-separated string of SQL INSERTs.
     function (data) {
@@ -109,3 +109,7 @@ Add your tests to the [`tests`](tests) folder, then import them in the [`tests/i
 - `yarn watch`: Watches for changes for TypeScript files, builds the source on a change, then runs [`dist/index.js`](dist/index.js) (Every other system)
 - `yarn test`: Runs tests.
 
+## Research
+
+* Order of records is not guuarenteed.  It is important to have an accurate createdAt timestamp for your records for meaningful useful sorting.
+* Find a way to convert JSON to insert statements quickly.
