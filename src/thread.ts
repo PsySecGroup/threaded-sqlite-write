@@ -12,7 +12,7 @@ const createTableCacheRegex = /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s*(\w+)\s*\(([
 const fieldRegex = /(\w+)\s+(\w+)/ig
 
 const workerFunction = `const { parentPort } = require('worker_threads')
-const { getDb } = require('.')
+const SqliteDatabaseConnection = require('better-sqlite3')
 
 let db
 let transactionFactory
@@ -69,7 +69,7 @@ parentPort.on('message', (command) => {
     typeCacheKeys = Object.keys(command.typeCache.fields)
     typeCacheInsert = typeCacheKeys.join(', ')
 
-    db = getDb(path)
+    db = new SqliteDatabaseConnection(path)
     db.exec('PRAGMA journal_mode = OFF;')
     db.exec('PRAGMA synchronous = 0;')
     db.exec('PRAGMA cache_size = 1000000;')
